@@ -34,6 +34,17 @@ A production-quality SwiftUI iOS app for managing auto detailing services with b
 - Service fields: name, description, duration, price, category
 - Accessible from Settings and dedicated Services tab
 
+### AI Booking Assistant
+- Conversational interface powered by rule-based NLP (Natural Language Processing)
+- Helps users discover services and start bookings through natural conversation
+- Intelligent intent detection (greetings, service inquiries, pricing, duration, booking requests)
+- Extracts booking information from chat (vehicle details, service preferences, dates)
+- Context-aware responses based on available services
+- Pattern matching for vehicle makes (30+ manufacturers), years, colors, and models
+- Keyword detection for service categories (detailing, wash, coating, etc.)
+- No external API calls - completely local processing for privacy and speed
+- Accessible from business profile and services catalog views
+
 ### Booking Flow (Consumer Mode)
 - 5-step booking process:
   1. Select Service
@@ -44,7 +55,7 @@ A production-quality SwiftUI iOS app for managing auto detailing services with b
 - Real-time validation with specific missing field messages
 - Idempotent booking with request IDs (prevents duplicate bookings)
 - Loading states and success confirmation
-- Intentional "appoitment" typo in confirmation message (matches spec)
+- Optional AI Assistant to help with service discovery before booking
 
 ### Schedule
 - Shows upcoming appointments (hides past appointments)
@@ -71,9 +82,9 @@ A production-quality SwiftUI iOS app for managing auto detailing services with b
 ## Architecture
 
 ### MVVM Pattern
-- **Models**: Service, Appointment, Customer, Vehicle, BusinessProfile
-- **ViewModels**: AuthViewModel, BookingViewModel, ServiceCatalogViewModel, ServicesManagerViewModel, ScheduleViewModel
-- **Views**: Organized by feature (Auth, Booking, Schedule, Business, Settings)
+- **Models**: Service, Appointment, Customer, Vehicle, BusinessProfile, ChatMessage, ExtractedBookingInfo
+- **ViewModels**: AuthViewModel, BookingViewModel, ServiceCatalogViewModel, ServicesManagerViewModel, ScheduleViewModel, AIAssistantViewModel
+- **Views**: Organized by feature (Auth, Booking, Schedule, Business, Settings, AI Assistant)
 
 ### Repository Pattern
 - `ServiceRepository` / `MutableServiceRepository`: Service data access
@@ -158,6 +169,7 @@ DetailerDash/
 ├── Theme.swift                 # Design system and reusable components
 ├── ViewModels.swift            # All ViewModels
 ├── AuthView.swift              # Authentication UI
+├── AIAssistantView.swift       # AI chat interface for booking assistance
 ├── BookingFlowView.swift       # Complete booking flow
 ├── ScheduleView.swift          # Schedule list and detail
 ├── BusinessViews.swift         # Find, profile, services manager
@@ -176,9 +188,14 @@ DetailerDash/
 ### Consumer Flow
 1. Create account with "Personal" type
 2. Use "Find" tab to search for a business by handle
-3. Book appointment through complete flow
-4. View appointment in Schedule
-5. Cancel appointment from detail view
+3. Try the AI Assistant on business profile
+   - Ask questions like "What services do you offer?"
+   - Test natural language: "I need a detail for my 2020 Honda Civic"
+   - Check pricing: "How much is a full detail?"
+   - Start booking from AI chat
+4. Book appointment through complete flow
+5. View appointment in Schedule
+6. Cancel appointment from detail view
 
 ### Business Flow
 1. Create account with "Business" type and business name
@@ -193,7 +210,6 @@ DetailerDash/
 
 ## Known Behaviors
 
-- "appoitment" typo in confirmation message is intentional per spec
 - Mock sign-in accepts any credentials
 - Time slots are randomly available (mock data)
 - No network calls (all local storage)
@@ -204,6 +220,8 @@ This app uses only native iOS frameworks:
 - SwiftUI
 - Foundation
 - Combine
+
+No external AI APIs or SDKs required - the AI Assistant uses built-in pattern matching and natural language processing techniques.
 
 ## License
 

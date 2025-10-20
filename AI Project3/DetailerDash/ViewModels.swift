@@ -174,7 +174,7 @@ class BookingViewModel: ObservableObject {
         let timeFormatter = DateFormatter()
         timeFormatter.timeStyle = .short
         
-        return "Are you sure you want to book an appoitment on \(formatter.string(from: time)), \(timeFormatter.string(from: time)) for \(service.name)"
+        return "Are you sure you want to book an appointment on \(formatter.string(from: time)), \(timeFormatter.string(from: time)) for \(service.name)"
     }
     
     func loadAvailableSlots() {
