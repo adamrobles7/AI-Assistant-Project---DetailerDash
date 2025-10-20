@@ -35,14 +35,14 @@ A production-quality SwiftUI iOS app for managing auto detailing services with b
 - Accessible from Settings and dedicated Services tab
 
 ### AI Booking Assistant
-- Conversational interface powered by rule-based NLP (Natural Language Processing)
+- Conversational interface powered by **OpenAI GPT-3.5-turbo API**
+- Natural language understanding for complex queries and context
 - Helps users discover services and start bookings through natural conversation
-- Intelligent intent detection (greetings, service inquiries, pricing, duration, booking requests)
-- Extracts booking information from chat (vehicle details, service preferences, dates)
-- Context-aware responses based on available services
+- Dynamic system prompts with business context (services, pricing, customer info)
+- Intelligent information extraction (vehicle details, service preferences, dates)
+- Context-aware responses based on available services and conversation history
 - Pattern matching for vehicle makes (30+ manufacturers), years, colors, and models
-- Keyword detection for service categories (detailing, wash, coating, etc.)
-- No external API calls - completely local processing for privacy and speed
+- Real-time API integration with error handling and retry logic
 - Accessible from business profile and services catalog views
 
 ### Booking Flow (Consumer Mode)
@@ -210,18 +210,22 @@ DetailerDash/
 
 ## Known Behaviors
 
-- Mock sign-in accepts any credentials
 - Time slots are randomly available (mock data)
 - No network calls (all local storage)
 
-## No Third-Party Dependencies
+## External APIs
 
-This app uses only native iOS frameworks:
-- SwiftUI
-- Foundation
-- Combine
+**OpenAI API Integration:**
+- GPT-3.5-turbo for conversational AI
+- Secure API key configuration
+- Network error handling
 
-No external AI APIs or SDKs required - the AI Assistant uses built-in pattern matching and natural language processing techniques.
+**Native iOS Frameworks:**
+- SwiftUI (UI framework)
+- Foundation (core functionality)
+- Combine (reactive programming and API calls)
+
+**Note:** API key is hardcoded for educational purposes. Production apps should use a backend proxy to secure API keys.
 
 ## License
 

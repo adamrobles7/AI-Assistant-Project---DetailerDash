@@ -222,72 +222,105 @@ Same flow for cancellations with .appointmentCancelled
                      │
                      ▼
 ┌────────────────────────────────────────────────────────────┐
-│  AIAssistantViewModel.processUserMessage()                 │
-│  ├── Intent Detection (rule-based)                         │
-│  │   ├── Greeting detection                                │
-│  │   ├── Service inquiry                                   │
-│  │   ├── Pricing questions                                 │
-│  │   ├── Duration questions                                │
-│  │   ├── Booking intent                                    │
-│  │   └── Problem/need detection                            │
+│  AIAssistantViewModel.processUserMessageWithOpenAI()       │
+│  ├── Extract vehicle info (regex + pattern matching)       │
+│  │   ├── Vehicle year (4-digit pattern)                    │
+│  │   ├── Vehicle make (30+ manufacturers)                  │
+│  │   ├── Vehicle model, color                              │
+│  │   └── Service keywords                                  │
 │  │                                                          │
-│  └── Information Extraction (regex + pattern matching)     │
-│      ├── Vehicle year (4-digit pattern)                    │
-│      ├── Vehicle make (30+ manufacturers)                  │
-│      ├── Vehicle model (common models)                     │
-│      ├── Vehicle color (14 colors)                         │
-│      ├── Service keywords (detail, wash, coating, etc.)    │
-│      └── Date/time preferences                             │
+│  └── Build OpenAI Messages Array                           │
+│      ├── System prompt with business context               │
+│      ├── Available services (names, prices, durations)     │
+│      ├── Extracted customer context (vehicle info)         │
+│      └── Full conversation history                         │
 └────────────────────┬───────────────────────────────────────┘
                      │
                      ▼
 ┌────────────────────────────────────────────────────────────┐
-│  Context-Aware Response Generation                         │
-│  ├── Match extracted info with available services          │
-│  ├── Generate personalized recommendations                 │
-│  ├── Provide pricing and duration details                  │
-│  └── Suggest next steps (booking action)                   │
+│  OpenAIService.sendChatCompletion()                        │
+│  ├── HTTPRequest to api.openai.com/v1/chat/completions    │
+│  ├── Model: gpt-3.5-turbo                                  │
+│  ├── Temperature: 0.7                                      │
+│  └── Max Tokens: 500                                       │
 └────────────────────┬───────────────────────────────────────┘
                      │
                      ▼
 ┌────────────────────────────────────────────────────────────┐
-│  Display Response + Action Buttons                         │
-│  └── "Start Booking" button (when service suggested)       │
+│  OpenAI GPT-3.5-turbo Processing                           │
+│  ├── Natural language understanding                        │
+│  ├── Context-aware reasoning                               │
+│  ├── Service recommendations                               │
+│  └── Conversational response generation                    │
+└────────────────────┬───────────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────────────────────┐
+│  Response Handling (Combine Pipeline)                      │
+│  ├── Success: Display AI response in chat                  │
+│  ├── Error: Show user-friendly error message               │
+│  └── Re-extract info for suggested services                │
+└────────────────────┬───────────────────────────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────────────────────────┐
+│  UI Update                                                  │
+│  ├── Add assistant message to chat                         │
+│  ├── Show "Start Booking" button (if services suggested)   │
+│  └── Scroll to latest message                              │
 └────────────────────────────────────────────────────────────┘
 ```
 
-### NLP Capabilities
+### OpenAI GPT-3.5-turbo Integration
 
-**Intent Detection Methods:**
-- Greeting patterns: "hi", "hello", "hey", etc.
-- Service inquiries: "what services", "show me", "do you have", etc.
-- Pricing: "how much", "cost", "price", "pricing", etc.
-- Duration: "how long", "duration", "time", etc.
-- Booking: "book", "schedule", "appointment", "reserve", etc.
-- Problem keywords: "scratched", "dirty", "stained", "damaged", etc.
+**API Configuration:**
+- **Model**: gpt-3.5-turbo (cost-effective, fast responses)
+- **Temperature**: 0.7 (balanced creativity and consistency)
+- **Max Tokens**: 500 (controls response length)
+- **Endpoint**: https://api.openai.com/v1/chat/completions
 
-**Information Extraction:**
+**System Prompt Engineering:**
+```
+You are a helpful booking assistant for [Business Name], an auto detailing business.
+Your goal is to help customers discover services and schedule appointments.
+
+AVAILABLE SERVICES:
+- [Service Name]: $XX.XX, Duration: Xh XXm
+  Description: [Description]
+...
+
+CUSTOMER CONTEXT: (if available)
+- Vehicle Year: XXXX
+- Vehicle Make: [Make]
+- Interested in: [Service]
+
+GUIDELINES:
+- Be friendly, professional, and concise
+- Mention pricing and duration when discussing services
+- Use **bold** for emphasis
+- Keep responses under 150 words
+- Suggest booking when appropriate
+```
+
+**Information Extraction (Local):**
 - **Vehicle Year**: Regex pattern `\b(19|20)\d{2}\b` (1900-2099)
 - **Vehicle Make**: 30+ manufacturers (Honda, Toyota, Ford, BMW, Tesla, etc.)
   - Handles aliases: "chevy" → "Chevrolet", "vw" → "Volkswagen"
 - **Vehicle Color**: 14 common colors (black, white, silver, red, blue, etc.)
-- **Service Matching**: 
-  - Exact name match (case-insensitive)
-  - Category keywords: "detail", "wash", "coating", "ceramic", "polish", "wax"
-  - Compound terms: "full detail", "express wash", "interior clean"
+- **Service Matching**: Category keywords (detail, wash, coating, ceramic, polish, wax)
 
-**Response Strategies:**
-1. **Priority-based**: Most specific intent wins (e.g., specific service + price > general pricing)
-2. **Contextual**: Uses business profile and available services for recommendations
-3. **Multi-turn**: Maintains conversation history for context
-4. **Actionable**: Provides clear next steps (booking buttons when ready)
+**Advantages of GPT Integration:**
+1. **Natural Understanding**: Handles complex, varied user inputs
+2. **Context Awareness**: Understands multi-turn conversations
+3. **Flexible Responses**: Adapts tone and content to user needs
+4. **No Hard-coded Rules**: Generalizes to unexpected queries
+5. **Professional Quality**: Industry-leading language model
 
-**No External APIs:**
-- All processing happens locally on-device
-- No network calls to OpenAI, Claude, or other LLM services
-- Pattern matching and keyword detection only
-- Fast response times (simulated 0.8s delay for UX)
-- Complete privacy - no data sent to external servers
+**Error Handling:**
+- Network errors: User-friendly retry message
+- API errors: Displays specific error from OpenAI
+- Invalid config: Checks API key before sending
+- Timeout handling: Combine pipeline with error propagation
 
 ## Design System
 
@@ -407,10 +440,13 @@ Views
 - Efficient view updates (minimal @Published properties)
 - NavigationStack (iOS 16+) for modern navigation
 - Case-insensitive search with O(n) complexity on business directory
-- AI Assistant uses local pattern matching (no network latency)
-- Simulated 0.8s processing delay for natural conversation feel
+- AI Assistant uses OpenAI API (network-dependent)
+  - Average response time: 1-3 seconds
+  - Cancellable requests (stored in cancellables set)
+  - Error handling for offline scenarios
+- Local vehicle info extraction (regex, no network calls)
 - Chat messages stored in memory only (cleared on dismiss)
-- Regex compilation happens once per message (efficient)
+- System prompt rebuilt per message with current context
 
 ## Security Considerations
 
@@ -429,6 +465,9 @@ Views
 - Implement JWT or OAuth tokens
 - Add password strength validation
 - Enable two-factor authentication
+- **Move OpenAI API key to backend proxy server**
+- Implement per-user rate limiting for AI requests
+- Monitor and cap API usage costs
 
 ## UI/UX Enhancements Implemented
 
@@ -438,10 +477,12 @@ Views
 - ✅ **Format Hint Card**: Helpful search instructions in Find tab
 - ✅ **Case-Insensitive Search**: Flexible business lookup
 - ✅ **Modern Navigation**: NavigationStack (iOS 16+) implementation
-- ✅ **AI Booking Assistant**: Conversational interface with rule-based NLP
+- ✅ **AI Booking Assistant**: Conversational interface with OpenAI GPT-3.5-turbo
 - ✅ **Chat Interface**: Message bubbles, typing indicators, auto-scroll
 - ✅ **Bold Markdown**: Support for **bold** text in AI responses
 - ✅ **Contextual Actions**: Dynamic "Start Booking" button when ready
+- ✅ **Smart System Prompts**: Dynamic context injection (services, customer info)
+- ✅ **API Integration**: OpenAI REST API with Combine reactive pipeline
 
 ## Future Enhancements (Not Implemented)
 
@@ -456,9 +497,11 @@ Views
 - Analytics dashboard
 - Password reset via email
 - Biometric authentication (Face ID, Touch ID)
-- Advanced AI with LLM integration (GPT-4, Claude)
+- Upgrade to GPT-4 or Claude for more advanced reasoning
 - Voice input for AI Assistant (Speech-to-Text)
 - Multilingual support in AI chat
-- AI-powered service recommendations based on vehicle history
+- AI-powered service recommendations based on booking history
 - Sentiment analysis for customer feedback
+- AI-generated service descriptions and pricing suggestions
+- Chatbot training on business-specific FAQs
 

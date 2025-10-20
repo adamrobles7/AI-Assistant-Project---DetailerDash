@@ -227,7 +227,6 @@ struct ServiceCard: View {
                 Text(service.description)
                     .font(Theme.body(14))
                     .foregroundColor(Theme.secondaryText)
-                    .lineLimit(2)
                 
                 Text("\(service.durationMinutes) minutes")
                     .font(Theme.caption())

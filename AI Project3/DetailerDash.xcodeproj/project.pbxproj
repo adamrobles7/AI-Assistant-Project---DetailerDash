@@ -21,6 +21,8 @@
 		AA1000012 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000012 /* RootView.swift */; };
 		AA1000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA2000013 /* Assets.xcassets */; };
 		AA1000014 /* AIAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000014 /* AIAssistantView.swift */; };
+		AA1000015 /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000015 /* Config.swift */; };
+		AA1000016 /* OpenAIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000016 /* OpenAIService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +41,8 @@
 		AA2000012 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		AA2000013 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA2000014 /* AIAssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistantView.swift; sourceTree = "<group>"; };
+		AA2000015 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		AA2000016 /* OpenAIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +73,8 @@
 				AA2000004 /* Stores.swift */,
 				AA2000005 /* Theme.swift */,
 				AA2000006 /* ViewModels.swift */,
+				AA2000015 /* Config.swift */,
+				AA2000016 /* OpenAIService.swift */,
 				AA2000007 /* AuthView.swift */,
 				AA2000008 /* BookingFlowView.swift */,
 				AA2000009 /* ScheduleView.swift */,
@@ -164,6 +170,8 @@
 				AA1000004 /* Stores.swift in Sources */,
 				AA1000005 /* Theme.swift in Sources */,
 				AA1000006 /* ViewModels.swift in Sources */,
+				AA1000015 /* Config.swift in Sources */,
+				AA1000016 /* OpenAIService.swift in Sources */,
 				AA1000007 /* AuthView.swift in Sources */,
 				AA1000008 /* BookingFlowView.swift in Sources */,
 				AA1000009 /* ScheduleView.swift in Sources */,

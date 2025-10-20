@@ -467,9 +467,11 @@ class AIAssistantViewModel: ObservableObject {
     @Published var isProcessing = false
     @Published var extractedInfo = ExtractedBookingInfo()
     @Published var suggestedServices: [Service] = []
+    @Published var errorMessage: String?
     
     private let businessProfile: BusinessProfile
     private let availableServices: [Service]
+    private var cancellables = Set<AnyCancellable>()
     
     init(businessProfile: BusinessProfile, availableServices: [Service]) {
         self.businessProfile = businessProfile
@@ -492,82 +494,55 @@ class AIAssistantViewModel: ObservableObject {
         messages.append(userMessage)
         inputText = ""
         
-        // Process message
+        // Process message with OpenAI
         isProcessing = true
+        errorMessage = nil
         
-        // Simulate AI processing delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            guard let self = self else { return }
-            self.processUserMessage(trimmedText)
-            self.isProcessing = false
-        }
+        processUserMessageWithOpenAI(trimmedText)
     }
     
-    private func processUserMessage(_ text: String) {
+    private func processUserMessageWithOpenAI(_ text: String) {
+        // Extract information for context (vehicle info, service keywords)
         let lowercased = text.lowercased()
-        
-        // Extract information from the message
         extractInformation(from: lowercased)
         
-        // Detect multiple intents (not mutually exclusive)
-        let isGreetingMsg = isGreeting(lowercased)
-        let isAskingServices = isAskingAboutServices(lowercased)
-        let isAskingPrice = isAskingAboutPricing(lowercased)
-        let isAskingTime = isAskingAboutDuration(lowercased)
-        let hasBookingIntent = isBookingIntent(lowercased)
-        let hasVehicleInfo = containsVehicleInfo(lowercased)
-        let hasServiceMention = !suggestedServices.isEmpty
+        // Build OpenAI conversation history
+        let openAIMessages = buildOpenAIMessages()
         
-        // Respond based on combined intents with priority
-        
-        // 1. Specific service + pricing question (e.g., "how much is a detail?")
-        if hasServiceMention && isAskingPrice {
-            respondWithSpecificServicePrice()
-        }
-        // 2. Specific service + duration question (e.g., "how long does ceramic coating take?")
-        else if hasServiceMention && isAskingTime {
-            respondWithDurationInfo()
-        }
-        // 3. Booking intent with context (e.g., "I want to book a detail for my Honda")
-        else if hasBookingIntent {
-            handleBookingIntent()
-        }
-        // 4. General pricing question
-        else if isAskingPrice {
-            respondWithPricingInfo()
-        }
-        // 5. Duration question
-        else if isAskingTime {
-            respondWithDurationInfo()
-        }
-        // 6. Services inquiry
-        else if isAskingServices {
-            respondWithServiceInfo(lowercased)
-        }
-        // 7. Service mentioned with vehicle info (e.g., "detail for my 2020 Honda")
-        else if hasServiceMention && hasVehicleInfo {
-            respondWithServiceAndVehicle()
-        }
-        // 8. Just service mentioned (e.g., "tell me about your wash")
-        else if hasServiceMention {
-            respondWithServiceDetails()
-        }
-        // 9. Vehicle info mentioned (e.g., "I have a 2020 Honda Civic")
-        else if hasVehicleInfo {
-            handleVehicleInfo()
-        }
-        // 10. Greeting
-        else if isGreetingMsg {
-            respondToGreeting()
-        }
-        // 11. Questions about specific problems
-        else if containsProblemKeywords(lowercased) {
-            respondToCarProblem(lowercased)
-        }
-        // 12. Default helpful response
-        else {
-            respondWithGeneralHelp()
-        }
+        // Call OpenAI API
+        OpenAIService.shared.sendChatCompletion(messages: openAIMessages)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    guard let self = self else { return }
+                    self.isProcessing = false
+                    
+                    if case .failure(let error) = completion {
+                        self.errorMessage = error.localizedDescription
+                        
+                        // Add error message to chat
+                        let errorMsg = ChatMessage(
+                            sender: .assistant,
+                            content: "I apologize, but I'm having trouble connecting right now. \(error.localizedDescription)\n\nPlease check your internet connection and try again."
+                        )
+                        self.messages.append(errorMsg)
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    guard let self = self else { return }
+                    
+                    // Add AI response to messages
+                    let assistantMessage = ChatMessage(
+                        sender: .assistant,
+                        content: response
+                    )
+                    self.messages.append(assistantMessage)
+                    
+                    // Re-extract info from the conversation to update suggested services
+                    self.extractInformation(from: lowercased)
+                }
+            )
+            .store(in: &cancellables)
     }
     
     private func extractInformation(from text: String) {
@@ -676,330 +651,78 @@ class AIAssistantViewModel: ObservableObject {
         }
     }
     
-    private func isGreeting(_ text: String) -> Bool {
-        let greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "yo", "sup", "greetings"]
-        // Check if it's a short message that's just a greeting
-        let words = text.split(separator: " ")
-        if words.count <= 3 {
-            return greetings.contains(where: { text.contains($0) })
-        }
-        return false
-    }
+    // MARK: - OpenAI Integration
     
-    private func isAskingAboutServices(_ text: String) -> Bool {
-        let keywords = ["what services", "what do you offer", "what can you do", "services available", 
-                       "show me services", "list services", "what services do you have", "tell me about your services",
-                       "what are your services", "services do you provide", "what do you do"]
-        return keywords.contains(where: { text.contains($0) })
-    }
-    
-    private func isAskingAboutPricing(_ text: String) -> Bool {
-        let keywords = ["how much", "price", "cost", "pricing", "rates", "charge", "expensive",
-                       "what does it cost", "how much does", "what's the price", "what is the price"]
-        return keywords.contains(where: { text.contains($0) })
-    }
-    
-    private func isAskingAboutDuration(_ text: String) -> Bool {
-        let keywords = ["how long", "duration", "take time", "hours", "minutes", "time does it take",
-                       "long does it take", "how much time"]
-        return keywords.contains(where: { text.contains($0) })
-    }
-    
-    private func isBookingIntent(_ text: String) -> Bool {
-        let keywords = ["book", "schedule", "appointment", "reserve", "i need", "i want", "looking for",
-                       "can i book", "want to book", "would like to book", "make an appointment", 
-                       "set up an appointment", "get an appointment"]
-        return keywords.contains(where: { text.contains($0) })
-    }
-    
-    private func containsVehicleInfo(_ text: String) -> Bool {
-        return extractedInfo.vehicleMake != nil || extractedInfo.vehicleYear != nil
-    }
-    
-    private func containsProblemKeywords(_ text: String) -> Bool {
-        let problems = ["scratch", "swirl", "dent", "stain", "dirty", "mess", "smell", "odor",
-                       "faded", "oxidized", "water spots", "bird droppings", "tar", "sap"]
-        return problems.contains(where: { text.contains($0) })
-    }
-    
-    private func respondToGreeting() {
-        let response = "Hello! How can I help you today? Are you looking to book a detailing service?"
-        addAssistantMessage(response)
-    }
-    
-    private func respondWithServiceInfo(_ text: String) {
-        if availableServices.isEmpty {
-            addAssistantMessage("We're currently updating our service menu. Please check back soon!")
-            return
+    private func buildOpenAIMessages() -> [OpenAIMessage] {
+        var openAIMessages: [OpenAIMessage] = []
+        
+        // System message with business context
+        let systemPrompt = buildSystemPrompt()
+        openAIMessages.append(OpenAIService.createMessage(role: "system", content: systemPrompt))
+        
+        // Add conversation history (excluding welcome message)
+        for message in messages.dropFirst() {
+            let role = message.sender == .user ? "user" : "assistant"
+            openAIMessages.append(OpenAIService.createMessage(role: role, content: message.content))
         }
         
-        var response = "Here are our available services:\n\n"
-        for service in availableServices.prefix(5) {
-            response += "• **\(service.name)** - \(service.displayPrice)\n  \(service.description)\n\n"
-        }
-        
-        if availableServices.count > 5 {
-            response += "...and \(availableServices.count - 5) more! Would you like help choosing the right service?"
-        } else {
-            response += "Which service interests you?"
-        }
-        
-        addAssistantMessage(response)
+        return openAIMessages
     }
     
-    private func respondWithPricingInfo() {
-        if availableServices.isEmpty {
-            addAssistantMessage("We're currently updating our pricing. Please check back soon!")
-            return
-        }
+    private func buildSystemPrompt() -> String {
+        var prompt = """
+        You are a helpful booking assistant for \(businessProfile.businessName), an auto detailing business. \
+        Your goal is to help customers discover services and schedule appointments in a friendly, conversational way.
         
-        let minPrice = availableServices.map { $0.basePriceCents }.min() ?? 0
-        let maxPrice = availableServices.map { $0.basePriceCents }.max() ?? 0
+        """
         
-        var response = "Our pricing varies by service:\n\n"
-        response += "• Starting from \(formatPrice(minPrice))\n"
-        response += "• Up to \(formatPrice(maxPrice))\n\n"
-        response += "Would you like to see specific service prices?"
-        
-        addAssistantMessage(response)
-    }
-    
-    private func respondWithDurationInfo() {
-        if let service = suggestedServices.first {
-            let hours = service.durationMinutes / 60
-            let mins = service.durationMinutes % 60
-            var timeStr = ""
-            if hours > 0 {
-                timeStr += "\(hours) hour\(hours > 1 ? "s" : "")"
-            }
-            if mins > 0 {
-                if hours > 0 { timeStr += " and " }
-                timeStr += "\(mins) minutes"
-            }
-            addAssistantMessage("\(service.name) typically takes \(timeStr). Would you like to book this service?")
-        } else {
-            addAssistantMessage("Service duration varies by type. Most details take 2-4 hours, while quick washes take 30-60 minutes. Which service are you interested in?")
-        }
-    }
-    
-    private func handleBookingIntent() {
-        var response = ""
-        
-        // Check what info we have
-        if extractedInfo.vehicleMake != nil || extractedInfo.vehicleYear != nil {
-            response += "Great! I can help you book an appointment"
-            if let make = extractedInfo.vehicleMake, let year = extractedInfo.vehicleYear {
-                response += " for your \(year) \(make)"
-            } else if let make = extractedInfo.vehicleMake {
-                response += " for your \(make)"
-            }
-            response += ". "
-        } else {
-            response += "I'd be happy to help you book an appointment! "
-        }
-        
-        // Suggest services if we found any
-        if !suggestedServices.isEmpty {
-            response += "\n\nBased on what you mentioned, here are some services that might work:\n\n"
-            for service in suggestedServices.prefix(3) {
-                response += "• **\(service.name)** - \(service.displayPrice) (~\(service.durationMinutes/60)hr)\n  \(service.description)\n\n"
-            }
-            response += "Tap the 'Start Booking' button below to choose a service and pick your preferred time!"
-        } else if !availableServices.isEmpty {
-            response += "\n\nWhat type of service are you looking for? We offer:\n"
-            let categories = Set(availableServices.map { $0.category.rawValue })
-            for category in categories.sorted() {
-                response += "• \(category)\n"
-            }
-            response += "\nOr tap 'Start Booking' below to browse all services!"
-        } else {
-            response += "We're currently updating our services. Please check back soon!"
-        }
-        
-        addAssistantMessage(response)
-    }
-    
-    private func handleVehicleInfo() {
-        var response = "Got it! "
-        
-        if let year = extractedInfo.vehicleYear, let make = extractedInfo.vehicleMake {
-            response += "I see you have a \(year) \(make). "
-        } else if let make = extractedInfo.vehicleMake {
-            response += "I see you have a \(make). "
-        } else if let year = extractedInfo.vehicleYear {
-            response += "I see you have a \(year) vehicle. "
-        }
-        
-        response += "What type of service are you looking for? "
-        
+        // Add services information
         if !availableServices.isEmpty {
-            response += "We offer detailing, washing, ceramic coating, and more."
-        }
-        
-        addAssistantMessage(response)
-    }
-    
-    private func respondWithGeneralHelp() {
-        let responses = [
-            "I can help you find the right service or schedule an appointment. What would you like to know?",
-            "Tell me about your vehicle and what kind of service you're looking for, and I'll help you out!",
-            "I'm here to help! You can ask me about our services, pricing, or book an appointment. What interests you?"
-        ]
-        addAssistantMessage(responses.randomElement() ?? responses[0])
-    }
-    
-    // New response methods for better handling
-    
-    private func respondWithSpecificServicePrice() {
-        guard let service = suggestedServices.first else {
-            respondWithPricingInfo()
-            return
-        }
-        
-        if suggestedServices.count == 1 {
+            prompt += "AVAILABLE SERVICES:\n"
+            for service in availableServices {
             let hours = service.durationMinutes / 60
-            let mins = service.durationMinutes % 60
-            var timeStr = ""
-            if hours > 0 {
-                timeStr += "\(hours) hour\(hours > 1 ? "s" : "")"
+                let minutes = service.durationMinutes % 60
+                let duration = hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+                prompt += "- \(service.name): \(service.displayPrice), Duration: \(duration)\n  Description: \(service.description)\n"
             }
-            if mins > 0 {
-                if hours > 0 { timeStr += " and " }
-                timeStr += "\(mins) minutes"
-            }
-            
-            var response = "**\(service.name)** costs \(service.displayPrice) and takes approximately \(timeStr).\n\n"
-            response += "\(service.description)\n\n"
-            response += "Would you like to book this service?"
-            addAssistantMessage(response)
-        } else {
-            var response = "Here are the prices for the services you asked about:\n\n"
-            for service in suggestedServices {
-                response += "• **\(service.name)** - \(service.displayPrice)\n"
-            }
-            response += "\nWould you like more details about any of these?"
-            addAssistantMessage(response)
-        }
-    }
-    
-    private func respondWithServiceDetails() {
-        guard let service = suggestedServices.first else {
-            respondWithServiceInfo("")
-            return
+            prompt += "\n"
         }
         
-        let hours = service.durationMinutes / 60
-        let mins = service.durationMinutes % 60
-        var timeStr = ""
-        if hours > 0 {
-            timeStr += "\(hours) hour\(hours > 1 ? "s" : "")"
-        }
-        if mins > 0 {
-            if hours > 0 { timeStr += " and " }
-            timeStr += "\(mins) minutes"
-        }
-        
-        var response = "**\(service.name)**\n\n"
-        response += "\(service.description)\n\n"
-        response += "• **Price**: \(service.displayPrice)\n"
-        response += "• **Duration**: \(timeStr)\n"
-        response += "• **Category**: \(service.category.rawValue)\n\n"
-        response += "Would you like to book this service?"
-        addAssistantMessage(response)
-    }
-    
-    private func respondWithServiceAndVehicle() {
-        var response = "Perfect! "
-        
-        if let year = extractedInfo.vehicleYear, let make = extractedInfo.vehicleMake {
-            response += "For your \(year) \(make), "
-        } else if let make = extractedInfo.vehicleMake {
-            response += "For your \(make), "
+        // Add extracted context
+        if extractedInfo.hasVehicleInfo || extractedInfo.hasServiceInfo {
+            prompt += "CUSTOMER CONTEXT:\n"
+            if let year = extractedInfo.vehicleYear {
+                prompt += "- Vehicle Year: \(year)\n"
+            }
+            if let make = extractedInfo.vehicleMake {
+                prompt += "- Vehicle Make: \(make)\n"
+            }
+            if let model = extractedInfo.vehicleModel {
+                prompt += "- Vehicle Model: \(model)\n"
+            }
+            if let color = extractedInfo.vehicleColor {
+                prompt += "- Vehicle Color: \(color)\n"
+            }
+            if let service = extractedInfo.servicePreference {
+                prompt += "- Interested in: \(service)\n"
+            }
+            prompt += "\n"
         }
         
-        if let service = suggestedServices.first {
-            response += "I'd recommend our **\(service.name)** service.\n\n"
-            response += "\(service.description)\n\n"
-            response += "• **Price**: \(service.displayPrice)\n"
-            
-            let hours = service.durationMinutes / 60
-            let mins = service.durationMinutes % 60
-            var timeStr = ""
-            if hours > 0 {
-                timeStr += "\(hours) hour\(hours > 1 ? "s" : "")"
-            }
-            if mins > 0 {
-                if hours > 0 { timeStr += " and " }
-                timeStr += "\(mins) minutes"
-            }
-            response += "• **Duration**: \(timeStr)\n\n"
-            response += "Ready to book? Tap 'Start Booking' below!"
-        }
+        prompt += """
+        GUIDELINES:
+        - Be friendly, professional, and concise
+        - When discussing services, mention pricing and duration
+        - If a customer mentions their vehicle, acknowledge it
+        - When appropriate, suggest they're ready to book
+        - Use **bold** for emphasis on service names and prices
+        - Keep responses under 150 words
+        - Don't mention that you're an AI or make up information not provided
         
-        addAssistantMessage(response)
-    }
-    
-    private func respondToCarProblem(_ text: String) {
-        var response = ""
+        Remember: You're helping them discover the right service and move toward booking!
+        """
         
-        // Determine the problem and suggest appropriate service
-        if text.contains("scratch") || text.contains("swirl") {
-            let paintServices = availableServices.filter { $0.category == .paint }
-            if !paintServices.isEmpty {
-                suggestedServices = paintServices
-                response = "For scratches and swirl marks, I'd recommend our **Paint Correction** service. It removes imperfections and restores your paint's clarity.\n\n"
-            } else {
-                response = "For scratches and swirl marks, a paint correction or detailing service would be ideal. "
-            }
-        } else if text.contains("water spots") || text.contains("faded") || text.contains("oxidized") {
-            let ceramicServices = availableServices.filter { $0.category == .ceramic }
-            if !ceramicServices.isEmpty {
-                suggestedServices = ceramicServices
-                response = "For water spots and faded paint, I'd recommend **Ceramic Coating**. It protects your paint and restores that deep shine.\n\n"
-            } else {
-                response = "For paint protection and restoration, a ceramic coating or detail would help. "
-            }
-        } else if text.contains("stain") || text.contains("smell") || text.contains("odor") {
-            let interiorServices = availableServices.filter { $0.category == .interior }
-            if !interiorServices.isEmpty {
-                suggestedServices = interiorServices
-                response = "For interior stains and odors, our **Interior Detailing** service is perfect. We'll deep clean and refresh your interior.\n\n"
-            } else {
-                response = "For interior issues, an interior detailing service would help. "
-            }
-        } else {
-            let detailServices = availableServices.filter { $0.category == .detailing }
-            if !detailServices.isEmpty {
-                suggestedServices = detailServices
-                response = "For general cleaning and restoration, a **Full Detail** service would take care of that for you.\n\n"
-            } else {
-                response = "We can help with that! "
-            }
-        }
-        
-        if !suggestedServices.isEmpty {
-            let service = suggestedServices[0]
-            response += "**\(service.name)** - \(service.displayPrice)\n"
-            response += "\(service.description)\n\n"
-            response += "Would you like to book this service?"
-        } else {
-            response += "Let me show you our services that can help:\n\n"
-            for service in availableServices.prefix(3) {
-                response += "• **\(service.name)** - \(service.displayPrice)\n"
-            }
-        }
-        
-        addAssistantMessage(response)
-    }
-    
-    private func addAssistantMessage(_ content: String) {
-        let message = ChatMessage(sender: .assistant, content: content)
-        messages.append(message)
-    }
-    
-    private func formatPrice(_ cents: Int) -> String {
-        let dollars = Double(cents) / 100.0
-        return String(format: "$%.2f", dollars)
+        return prompt
     }
     
     func clearChat() {
@@ -1015,4 +738,3 @@ class AIAssistantViewModel: ObservableObject {
         messages = [welcomeMessage]
     }
 }
-
