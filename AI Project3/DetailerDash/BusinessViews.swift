@@ -154,6 +154,37 @@ struct BusinessProfileView: View {
     }
 }
 
+// Wrapper to load services for AI Assistant
+struct AIAssistantSheetWrapper: View {
+    let businessProfile: BusinessProfile
+    let onStartBooking: () -> Void
+    @StateObject private var catalogViewModel: ServiceCatalogViewModel
+    
+    init(businessProfile: BusinessProfile, onStartBooking: @escaping () -> Void) {
+        self.businessProfile = businessProfile
+        self.onStartBooking = onStartBooking
+        let repository = LocalServiceRepository(businessCode: businessProfile.code)
+        _catalogViewModel = StateObject(wrappedValue: ServiceCatalogViewModel(repository: repository))
+    }
+    
+    var body: some View {
+        Group {
+            if catalogViewModel.isLoading {
+                ProgressView("Loading services...")
+            } else {
+                AIAssistantView(
+                    businessProfile: businessProfile,
+                    availableServices: catalogViewModel.services,
+                    onStartBooking: onStartBooking
+                )
+            }
+        }
+        .onAppear {
+            catalogViewModel.loadServices()
+        }
+    }
+}
+
 // MARK: - Business Services View (for booking)
 
 struct BusinessServicesView: View {
@@ -163,6 +194,7 @@ struct BusinessServicesView: View {
     @StateObject private var catalogViewModel: ServiceCatalogViewModel
     @State private var selectedService: Service?
     @State private var showBookingFlow = false
+    @State private var showAIAssistant = false
     
     init(businessProfile: BusinessProfile) {
         self.businessProfile = businessProfile
@@ -234,6 +266,17 @@ struct BusinessServicesView: View {
                         dismiss()
                     }
                 }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showAIAssistant = true }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                            Text("AI Help")
+                                .font(Theme.body(14))
+                        }
+                        .foregroundColor(Theme.primary)
+                    }
+                }
             }
             .onAppear {
                 catalogViewModel.loadServices()
@@ -243,6 +286,16 @@ struct BusinessServicesView: View {
                     businessProfile: businessProfile,
                     preselectedService: selectedService,
                     bookingRepository: MockBookingRepository(appointmentStore: AppointmentStore())
+                )
+            }
+            .sheet(isPresented: $showAIAssistant) {
+                AIAssistantView(
+                    businessProfile: businessProfile,
+                    availableServices: catalogViewModel.services,
+                    onStartBooking: {
+                        showAIAssistant = false
+                        // Don't dismiss the services view, user is already there
+                    }
                 )
             }
         }

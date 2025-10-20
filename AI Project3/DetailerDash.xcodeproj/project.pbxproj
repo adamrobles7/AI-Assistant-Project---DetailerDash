@@ -20,6 +20,7 @@
 		AA1000011 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000011 /* SettingsView.swift */; };
 		AA1000012 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000012 /* RootView.swift */; };
 		AA1000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA2000013 /* Assets.xcassets */; };
+		AA1000014 /* AIAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000014 /* AIAssistantView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +38,7 @@
 		AA2000011 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		AA2000012 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		AA2000013 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA2000014 /* AIAssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistantView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +75,7 @@
 				AA2000010 /* BusinessViews.swift */,
 				AA2000011 /* SettingsView.swift */,
 				AA2000012 /* RootView.swift */,
+				AA2000014 /* AIAssistantView.swift */,
 				AA2000013 /* Assets.xcassets */,
 			);
 			path = DetailerDash;
@@ -167,6 +170,7 @@
 				AA1000010 /* BusinessViews.swift in Sources */,
 				AA1000011 /* SettingsView.swift in Sources */,
 				AA1000012 /* RootView.swift in Sources */,
+				AA1000014 /* AIAssistantView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

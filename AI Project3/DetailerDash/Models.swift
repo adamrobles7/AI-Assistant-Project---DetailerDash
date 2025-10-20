@@ -178,3 +178,43 @@ struct BookingRequest {
     let businessName: String
 }
 
+// MARK: - AI Assistant
+
+enum MessageSender: Codable {
+    case user
+    case assistant
+}
+
+struct ChatMessage: Identifiable, Codable {
+    let id: String
+    let sender: MessageSender
+    let content: String
+    let timestamp: Date
+    
+    init(id: String = UUID().uuidString, sender: MessageSender, content: String, timestamp: Date = Date()) {
+        self.id = id
+        self.sender = sender
+        self.content = content
+        self.timestamp = timestamp
+    }
+}
+
+struct ExtractedBookingInfo {
+    var vehicleYear: String?
+    var vehicleMake: String?
+    var vehicleModel: String?
+    var vehicleColor: String?
+    var servicePreference: String?
+    var preferredDate: String?
+    var preferredTime: String?
+    var customerNotes: String?
+    
+    var hasVehicleInfo: Bool {
+        vehicleMake != nil || vehicleModel != nil || vehicleYear != nil
+    }
+    
+    var hasServiceInfo: Bool {
+        servicePreference != nil
+    }
+}
+
